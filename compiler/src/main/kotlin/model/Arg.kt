@@ -52,21 +52,42 @@ data class Arg constructor(
                 Type.Float -> "Float"
                 Type.Enum -> error("does not happen")
             }
-            CodeBlock.of(
-                "val %1N = bundle.get${typeString}(%1S)",
-                name,
-            ).toBuilder()
-        }
-
-        when {
-            !isNullable && !hasDefaultValue -> {
-                // always not null
-                codeBlock.add("?: error(%S)", "Screen requires parameter: $name")
+            val block = when {
+                !isNullable && !hasDefaultValue -> {
+                    // always not null
+                    CodeBlock.of(
+                        "val %1N = bundle.get${typeString}(%1S)?: error(%2S)",
+                        name,
+                        "Screen requires parameter: $name"
+                    )
+                }
+                hasDefaultValue && defaultValue != null -> {
+                    // with default value
+                    when (type) {
+                        Type.String -> {
+                            CodeBlock.of(
+                                "val %1N = bundle.get${typeString}(%1S)?: %2L",
+                                name,
+                                defaultValueLiteral,
+                            )
+                        }
+                        else -> {
+                            CodeBlock.of(
+                                "val %1N = bundle.get${typeString}(%1S, %2L)",
+                                name,
+                                defaultValueLiteral,
+                            )                            
+                        }
+                    }
+                }
+                else -> {
+                    CodeBlock.of(
+                        "val %1N = bundle.get${typeString}(%1S)",
+                        name,
+                    )
+                }
             }
-            hasDefaultValue && defaultValue != null -> {
-                // with default value
-                codeBlock.add("?: %L", defaultValueLiteral)
-            }
+            block.toBuilder()
         }
 
         codeBlock.add("\n").build()
